@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
-	"goprotogettercheck/errcheck"
+	"github.com/saiskee/goprotogettercheck/errcheck"
 	"os"
 	"path/filepath"
 	"regexp"
