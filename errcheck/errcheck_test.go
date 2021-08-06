@@ -280,7 +280,6 @@ require github.com/testlog v0.0.0
 	for i, test := range cases {
 		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
 			var checker Checker
-			checker.Exclusions.SymbolRegexpsByPackage = test.ignore
 			loadPackages = func(cfg *packages.Config, paths ...string) ([]*packages.Package, error) {
 				cfg.Env = append(os.Environ(),
 					"GOPATH="+tmpGopath,
@@ -436,12 +435,6 @@ func test(t *testing.T, f flags) {
 		blank   bool = f&CheckBlank != 0
 	)
 	var checker Checker
-	checker.Exclusions.TypeAssertions = !asserts
-	checker.Exclusions.BlankAssignments = !blank
-	checker.Exclusions.Symbols = append(checker.Exclusions.Symbols, DefaultExcludedSymbols...)
-	checker.Exclusions.Symbols = append(checker.Exclusions.Symbols,
-		fmt.Sprintf("(%s.ErrorMakerInterface).MakeNilError", testPackage),
-	)
 	packages, err := checker.LoadPackages(testPackage)
 	if err != nil {
 		t.Fatal(err)

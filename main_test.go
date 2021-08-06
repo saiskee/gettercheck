@@ -2,13 +2,13 @@ package main
 
 import (
 	"bytes"
+	"github.com/saiskee/goprotogettercheck/errcheck"
 	"io"
 	"os"
 	"regexp"
 	"strings"
 	"testing"
 
-	"github.com/kisielk/errcheck/errcheck"
 )
 
 var dotStar = regexp.MustCompile(".*")
@@ -209,17 +209,6 @@ func TestParseFlags(t *testing.T) {
 		return true
 	}
 
-	ignoresEqual := func(a map[string]*regexp.Regexp, b map[string]string) bool {
-		if (a == nil && b != nil) || (a != nil && b == nil) || (len(a) != len(b)) {
-			return false
-		}
-		for k, v := range a {
-			if v.String() != b[k] {
-				return false
-			}
-		}
-		return true
-	}
 
 	for _, c := range cases {
 		var checker errcheck.Checker
@@ -228,21 +217,6 @@ func TestParseFlags(t *testing.T) {
 		argsStr := strings.Join(c.args, " ")
 		if !slicesEqual(p, c.paths) {
 			t.Errorf("%q: path got %q want %q", argsStr, p, c.paths)
-		}
-		if ign := checker.Exclusions.SymbolRegexpsByPackage; !ignoresEqual(ign, c.ignore) {
-			t.Errorf("%q: ignore got %q want %q", argsStr, ign, c.ignore)
-		}
-		if pkgs := checker.Exclusions.Packages; !slicesEqual(pkgs, c.pkgs) {
-			t.Errorf("%q: packages got %v want %v", argsStr, pkgs, c.pkgs)
-		}
-		if tags := checker.Tags; !slicesEqual(tags, c.tags) {
-			t.Errorf("%q: tags got %v want %v", argsStr, tags, c.tags)
-		}
-		if b := checker.Exclusions.BlankAssignments; b != !c.blank {
-			t.Errorf("%q: BlankAssignments got %v want %v", argsStr, b, !c.blank)
-		}
-		if a := checker.Exclusions.TypeAssertions; a != !c.asserts {
-			t.Errorf("%q: TypeAssertions got %v want %v", argsStr, a, !c.asserts)
 		}
 		if e != c.error {
 			t.Errorf("%q: error got %q want %q", argsStr, e, c.error)
