@@ -1,4 +1,4 @@
-module goprotogettercheck
+module github.com/saiskee/goprotogettercheck
 
 go 1.16
 
