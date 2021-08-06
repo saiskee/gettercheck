@@ -7,10 +7,10 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+	"golang.org/x/tools/go/packages"
 	"regexp"
 	"sort"
-
-	"golang.org/x/tools/go/packages"
+	"strings"
 )
 
 var errorType *types.Interface
@@ -145,7 +145,10 @@ func (c *Checker) LoadPackages(paths ...string) ([]*packages.Package, error) {
 var generatedCodeRegexp = regexp.MustCompile("^// Code generated .* DO NOT EDIT\\.$")
 var dotStar = regexp.MustCompile(".*")
 
-func (c *Checker) shouldSkipFile(file *ast.File) bool {
+func (c *Checker) shouldSkipFile(file *ast.File, fset *token.FileSet) bool {
+	if strings.HasSuffix(fset.Position(file.Pos()).Filename , ".pb.go"){
+		return true
+	}
 	if !c.Exclusions.GeneratedFiles {
 		return false
 	}
@@ -177,9 +180,10 @@ func (c *Checker) CheckPackage(pkg *packages.Package) Result {
 	}
 
 	for _, astFile := range pkg.Syntax {
-		if c.shouldSkipFile(astFile) {
+		if c.shouldSkipFile(astFile, v.fset) {
 			continue
 		}
+
 		ast.Walk(v, astFile)
 	}
 	return Result{UnusedGetterError: v.errors}
