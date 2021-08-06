@@ -218,6 +218,9 @@ func (v *visitor) Visit(node ast.Node) ast.Visitor {
 		return nil
 	}
 	switch n := node.(type) {
+	case *ast.KeyValueExpr:
+		ast.Walk(v, n.Value)
+		return nil
 	case *ast.UnaryExpr:
 		switch x := n.X.(type) {
 		case *ast.SelectorExpr:
