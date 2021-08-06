@@ -26,9 +26,6 @@ var (
 
 func init() {
 	Analyzer.Flags.BoolVar(&argBlank, "blank", false, "if true, check for errors assigned to blank identifier")
-	Analyzer.Flags.BoolVar(&argAsserts, "assert", false, "if true, check for ignored type assertion results")
-	Analyzer.Flags.StringVar(&argExcludeFile, "exclude", "", "Path to a file containing a list of functions to exclude from checking")
-	Analyzer.Flags.BoolVar(&argExcludeOnly, "excludeonly", false, "Use only excludes from exclude file")
 }
 
 func runAnalyzer(pass *analysis.Pass) (interface{}, error) {
@@ -49,13 +46,11 @@ func runAnalyzer(pass *analysis.Pass) (interface{}, error) {
 		}
 	}
 
-	var allErrors []UncheckedError
+	var allErrors []UnusedGetterError
 	for _, f := range pass.Files {
 		v := &visitor{
 			typesInfo: pass.TypesInfo,
 			fset:      pass.Fset,
-			blank:     argBlank,
-			asserts:   argAsserts,
 			exclude:   exclude,
 			ignore:    map[string]*regexp.Regexp{}, // deprecated & not used
 			lines:     make(map[string][]string),
@@ -74,5 +69,5 @@ func runAnalyzer(pass *analysis.Pass) (interface{}, error) {
 		allErrors = append(allErrors, v.errors...)
 	}
 
-	return Result{UncheckedErrors: allErrors}, nil
+	return Result{UnusedGetterError: allErrors}, nil
 }

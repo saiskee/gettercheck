@@ -25,7 +25,7 @@ type marker struct {
 	line int
 }
 
-func newMarker(e UncheckedError) marker {
+func newMarker(e UnusedGetterError) marker {
 	return marker{e.Pos.Filename, e.Pos.Line}
 }
 
@@ -190,14 +190,14 @@ package custom
 			}
 			*uerr = uerr.Unique()
 			if test.numExpectedErrs == 0 {
-				if len(uerr.UncheckedErrors) != 0 {
+				if len(uerr.UnusedGetterError) != 0 {
 					t.Errorf("expected no errors, but got: %v", uerr)
 				}
 				return
 			}
 
-			if test.numExpectedErrs != len(uerr.UncheckedErrors) {
-				t.Errorf("expected: %d errors\nactual:   %d errors", test.numExpectedErrs, len(uerr.UncheckedErrors))
+			if test.numExpectedErrs != len(uerr.UnusedGetterError) {
+				t.Errorf("expected: %d errors\nactual:   %d errors", test.numExpectedErrs, len(uerr.UnusedGetterError))
 			}
 		})
 	}
@@ -300,14 +300,14 @@ require github.com/testlog v0.0.0
 			*uerr = uerr.Unique()
 
 			if test.numExpectedErrs == 0 {
-				if len(uerr.UncheckedErrors) != 0 {
+				if len(uerr.UnusedGetterError) != 0 {
 					t.Errorf("expected no errors, but got: %v", uerr)
 				}
 				return
 			}
 
-			if test.numExpectedErrs != len(uerr.UncheckedErrors) {
-				t.Errorf("expected: %d errors\nactual:   %d errors", test.numExpectedErrs, len(uerr.UncheckedErrors))
+			if test.numExpectedErrs != len(uerr.UnusedGetterError) {
+				t.Errorf("expected: %d errors\nactual:   %d errors", test.numExpectedErrs, len(uerr.UnusedGetterError))
 			}
 		})
 	}
@@ -417,14 +417,14 @@ require github.com/testlog v0.0.0
 			uerr = uerr.Unique()
 
 			if test.numExpectedErrs == 0 {
-				if len(uerr.UncheckedErrors) != 0 {
+				if len(uerr.UnusedGetterError) != 0 {
 					t.Errorf("expected no errors, but got: %v", uerr)
 				}
 				return
 			}
 
-			if test.numExpectedErrs != len(uerr.UncheckedErrors) {
-				t.Errorf("expected: %d errors\nactual:   %d errors", test.numExpectedErrs, len(uerr.UncheckedErrors))
+			if test.numExpectedErrs != len(uerr.UnusedGetterError) {
+				t.Errorf("expected: %d errors\nactual:   %d errors", test.numExpectedErrs, len(uerr.UnusedGetterError))
 			}
 		})
 	}
@@ -462,11 +462,11 @@ func test(t *testing.T, f flags) {
 
 	uerr = uerr.Unique()
 
-	if len(uerr.UncheckedErrors) != numErrors {
-		t.Errorf("got %d errors, want %d", len(uerr.UncheckedErrors), numErrors)
+	if len(uerr.UnusedGetterError) != numErrors {
+		t.Errorf("got %d errors, want %d", len(uerr.UnusedGetterError), numErrors)
 	unchecked_loop:
 		for k := range uncheckedMarkers {
-			for _, e := range uerr.UncheckedErrors {
+			for _, e := range uerr.UnusedGetterError {
 				if newMarker(e) == k {
 					continue unchecked_loop
 				}
@@ -476,7 +476,7 @@ func test(t *testing.T, f flags) {
 		if blank {
 		blank_loop:
 			for k := range blankMarkers {
-				for _, e := range uerr.UncheckedErrors {
+				for _, e := range uerr.UnusedGetterError {
 					if newMarker(e) == k {
 						continue blank_loop
 					}
@@ -487,7 +487,7 @@ func test(t *testing.T, f flags) {
 		if asserts {
 		assert_loop:
 			for k := range assertMarkers {
-				for _, e := range uerr.UncheckedErrors {
+				for _, e := range uerr.UnusedGetterError {
 					if newMarker(e) == k {
 						continue assert_loop
 					}
@@ -497,7 +497,7 @@ func test(t *testing.T, f flags) {
 		}
 	}
 
-	for i, err := range uerr.UncheckedErrors {
+	for i, err := range uerr.UnusedGetterError {
 		m := marker{err.Pos.Filename, err.Pos.Line}
 		if !uncheckedMarkers[m] && !blankMarkers[m] && !assertMarkers[m] {
 			t.Errorf("%d: unexpected error: %v", i, err)
