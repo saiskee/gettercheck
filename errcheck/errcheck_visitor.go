@@ -218,6 +218,29 @@ func (v *visitor) Visit(node ast.Node) ast.Visitor {
 		return nil
 	}
 	switch n := node.(type) {
+	case *ast.SelectorExpr:
+		obj := v.typesInfo.ObjectOf(n.Sel)
+		switch obj.(type) {
+		case *types.Var:
+		default:
+			return v
+		}
+		p := obj.Pos()
+		f := v.fset.File(p)
+		goPos := f.Position(p)
+		// If the variable is from a `.pb.go` file, it has a getter
+		// and the getter should be being used instead
+		if strings.Contains(goPos.String(), ".pb.go:") {
+			getter := fmt.Sprintf("Get%s", n.Sel.Name)
+			typ := v.typesInfo.TypeOf(n.X)
+			if method := FindMethod(typ, getter); method != nil{
+				mPos := method.Pos()
+				goMethodPos := v.fset.File(mPos).Position(mPos)
+				fmt.Println(getter, goMethodPos.String())
+				v.addErrorAtPosition(n.Sel.Pos(), n.Sel)
+			}
+		}
+
 	case *ast.KeyValueExpr:
 		ast.Walk(v, n.Value)
 		return nil
@@ -243,25 +266,46 @@ func (v *visitor) Visit(node ast.Node) ast.Visitor {
 			}
 		}
 		return nil
-	case *ast.Ident:
-		//fmt.Printf("Visiting ident -  %s\n", n.Name)
-		obj := v.typesInfo.ObjectOf(n)
-		switch obj.(type) {
-		case *types.Var:
-		default:
-			return v
-		}
-		p := obj.Pos()
-		f := v.fset.File(p)
-		goPos := f.Position(p)
-		// If the variable is from a `.pb.go` file, it has a getter
-		// and the getter should be being used instead
-		if strings.Contains(goPos.String(), ".pb.go:") {
-			v.addErrorAtPosition(n.Pos(), n)
+	//case *ast.Ident:
+	//	//fmt.Printf("Visiting ident -  %s\n", n.Name)
+	//	obj := v.typesInfo.ObjectOf(n)
+	//	switch obj.(type) {
+	//	case *types.Var:
+	//	default:
+	//		return v
+	//	}
+	//	p := obj.Pos()
+	//	f := v.fset.File(p)
+	//	goPos := f.Position(p)
+	//	// If the variable is from a `.pb.go` file, it has a getter
+	//	// and the getter should be being used instead
+	//	if strings.Contains(goPos.String(), ".pb.go:") {
+	//		v.addErrorAtPosition(n.Pos(), n)
+	//	}
+	//	return nil
+	}
+	return v
+}
+
+func FindMethod(p types.Type, methodName string)*types.Func{
+	switch typ := p.(type){
+	case *types.Pointer:
+		return FindMethod(typ.Elem(), methodName)
+	case *types.Named:
+		for i := 0; i < typ.NumMethods(); i++{
+			method := typ.Method(i)
+			if method.Name() == methodName{
+				return method
+			}
 		}
 		return nil
 	}
-	return v
+	return nil
+}
+
+
+func print(f interface{}){
+	fmt.Printf("debug - %+v\n", f)
 }
 
 type UnaryVisitor struct {

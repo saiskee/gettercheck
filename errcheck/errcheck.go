@@ -155,7 +155,6 @@ func (c *Checker) shouldSkipFile(file *ast.File, fset *token.FileSet) bool {
 	for _, cg := range file.Comments {
 		for _, comment := range cg.List {
 			if generatedCodeRegexp.MatchString(comment.Text) {
-				fmt.Println("hi")
 				return true
 			}
 		}
