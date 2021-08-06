@@ -7,7 +7,6 @@ import (
 	"go/token"
 	"go/types"
 	"os"
-	"regexp"
 	"strings"
 
 	"golang.org/x/tools/go/packages"
@@ -18,9 +17,7 @@ type visitor struct {
 	types     *types.Package
 	typesInfo *types.Info
 	fset      *token.FileSet
-	ignore    map[string]*regexp.Regexp
 	lines     map[string][]string
-	exclude   map[string]bool
 
 	errors  []UnusedGetterError
 	imports map[string]*packages.Package
@@ -169,61 +166,6 @@ func (v *visitor) argName(expr ast.Expr) string {
 	return t.String()
 }
 
-func (v *visitor) excludeCall(call *ast.CallExpr) bool {
-	var arg0 string
-	if len(call.Args) > 0 {
-		arg0 = v.argName(call.Args[0])
-	}
-	for _, name := range v.namesForExcludeCheck(call) {
-		if v.exclude[name] {
-			return true
-		}
-		if arg0 != "" && v.exclude[name+"("+arg0+")"] {
-			return true
-		}
-	}
-	return false
-}
-
-func (v *visitor) ignoreCall(call *ast.CallExpr) bool {
-	if v.excludeCall(call) {
-		return true
-	}
-
-	// Try to get an identifier.
-	// Currently only supports simple expressions:
-	//     1. f()
-	//     2. x.y.f()
-	var id *ast.Ident
-	switch exp := call.Fun.(type) {
-	case (*ast.Ident):
-		id = exp
-	case (*ast.SelectorExpr):
-		id = exp.Sel
-	default:
-		// eg: *ast.SliceExpr, *ast.IndexExpr
-	}
-
-	if id == nil {
-		return false
-	}
-
-	// If we got an identifier for the function, see if it is ignored
-	if re, ok := v.ignore[""]; ok && re.MatchString(id.Name) {
-		return true
-	}
-
-	if obj := v.typesInfo.Uses[id]; obj != nil {
-		if pkg := obj.Pkg(); pkg != nil {
-			if re, ok := v.ignore[nonVendoredPkgPath(pkg.Path())]; ok {
-				return re.MatchString(id.Name)
-			}
-		}
-	}
-
-	return false
-}
-
 // nonVendoredPkgPath returns the unvendored version of the provided package
 // path (or returns the provided path if it does not represent a vendored
 // path).
@@ -272,9 +214,12 @@ func readfile(filename string) []string {
 }
 
 func (v *visitor) Visit(node ast.Node) ast.Visitor {
+	if node == nil {
+		return nil
+	}
 	switch n := node.(type) {
 	case *ast.UnaryExpr:
-		switch x := n.X.(type){
+		switch x := n.X.(type) {
 		case *ast.SelectorExpr:
 			ast.Walk(v, x.X)
 			return nil
@@ -289,9 +234,9 @@ func (v *visitor) Visit(node ast.Node) ast.Visitor {
 		}
 		for i := 0; i < len(n.Lhs); i++ {
 			lNode := n.Lhs[i]
-			switch x := lNode.(type){
+			switch x := lNode.(type) {
 			case *ast.SelectorExpr:
-				ast.Walk(v,x.X)
+				ast.Walk(v, x.X)
 			}
 		}
 		return nil

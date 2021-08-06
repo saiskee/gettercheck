@@ -24,7 +24,7 @@ var (
 	ErrNoGoFiles = errors.New("package contains no go source files")
 )
 
-// UnusedGetterError indicates the position of an unchecked error return.
+// UnusedGetterError indicates the position of an unused protobuf getter.
 type UnusedGetterError struct {
 	Pos          token.Position
 	Line         string
@@ -97,29 +97,6 @@ func (r Result) Unique() Result {
 // Exclusions define symbols and language elements that will be not checked
 type Exclusions struct {
 
-	// Packages lists paths of excluded packages.
-	Packages []string
-
-	// SymbolRegexpsByPackage maps individual package paths to regular
-	// expressions that match symbols to be excluded.
-	//
-	// Packages whose paths appear both here and in Packages list will
-	// be excluded entirely.
-	//
-	// This is a legacy input that will be deprecated in errcheck version 2 and
-	// should not be used.
-	SymbolRegexpsByPackage map[string]*regexp.Regexp
-
-	// Symbols lists patterns that exclude individual package symbols.
-	//
-	// For example:
-	//
-	//   "fmt.Errorf"              // function
-	//   "fmt.Fprintf(os.Stderr)"  // function with set argument value
-	//   "(hash.Hash).Write"       // method
-	//
-	Symbols []string
-
 	// TestFiles excludes _test.go files.
 	TestFiles bool
 
@@ -131,12 +108,6 @@ type Exclusions struct {
 	//   ^// Code generated .* DO NOT EDIT\\.$
 	//
 	GeneratedFiles bool
-
-	// BlankAssignments ignores assignments to blank identifier.
-	BlankAssignments bool
-
-	// TypeAssertions ignores unchecked type assertions.
-	TypeAssertions bool
 }
 
 // Checker checks that you checked errors.
@@ -195,33 +166,13 @@ func (c *Checker) shouldSkipFile(file *ast.File) bool {
 // It will exclude specific errors from analysis if the user has configured
 // exclusions.
 func (c *Checker) CheckPackage(pkg *packages.Package) Result {
-	excludedSymbols := map[string]bool{}
-	for _, sym := range c.Exclusions.Symbols {
-		excludedSymbols[sym] = true
-	}
-
-	ignore := map[string]*regexp.Regexp{}
-	// Apply SymbolRegexpsByPackage first so that if the same path appears in
-	// Packages, a more narrow regexp will be superceded by dotStar below.
-	if regexps := c.Exclusions.SymbolRegexpsByPackage; regexps != nil {
-		for pkg, re := range regexps {
-			// TODO warn if previous entry overwritten?
-			ignore[nonVendoredPkgPath(pkg)] = re
-		}
-	}
-	for _, pkg := range c.Exclusions.Packages {
-		// TODO warn if previous entry overwritten?
-		ignore[nonVendoredPkgPath(pkg)] = dotStar
-	}
 
 	v := &visitor{
 		types:     pkg.Types,
 		typesInfo: pkg.TypesInfo,
 		fset:      pkg.Fset,
 		imports:   pkg.Imports,
-		ignore:    ignore,
 		lines:     make(map[string][]string),
-		exclude:   excludedSymbols,
 		errors:    []UnusedGetterError{},
 	}
 

@@ -172,17 +172,11 @@ func checkPaths(c *errcheck.Checker, paths ...string) (errcheck.Result, error) {
 func parseFlags(checker *errcheck.Checker, args []string) ([]string, int) {
 	flags := flag.NewFlagSet(args[0], flag.ContinueOnError)
 
-	var checkAsserts, checkBlanks bool
-
 	flags.BoolVar(&checker.Exclusions.TestFiles, "ignoretests", false, "if true, checking of _test.go files is disabled")
 	flags.BoolVar(&checker.Exclusions.GeneratedFiles, "ignoregenerated", false, "if true, checking of files with generated code is disabled")
 	flags.BoolVar(&verbose, "verbose", false, "produce more verbose logging")
 	flags.BoolVar(&abspath, "abspath", false, "print absolute paths to files")
 
-	ignorePkg := flags.String("ignorepkg", "", "comma-separated list of package paths to ignore")
-	ignore := ignoreFlag(map[string]*regexp.Regexp{})
-	flags.Var(ignore, "ignore", "[deprecated] comma-separated list of pairs of the form pkg:regex\n"+
-		"            the regex is used to ignore names within pkg.")
 
 	flags.StringVar(&checker.Mod, "mod", "", "module download mode to use: readonly or vendor. See 'go help modules' for more.")
 
@@ -190,16 +184,6 @@ func parseFlags(checker *errcheck.Checker, args []string) ([]string, int) {
 		return nil, exitFatalError
 	}
 
-	checker.Exclusions.BlankAssignments = !checkBlanks
-	checker.Exclusions.TypeAssertions = !checkAsserts
-
-	for _, pkg := range strings.Split(*ignorePkg, ",") {
-		if pkg != "" {
-			checker.Exclusions.Packages = append(checker.Exclusions.Packages, pkg)
-		}
-	}
-
-	checker.Exclusions.SymbolRegexpsByPackage = ignore
 
 	paths := flags.Args()
 	if len(paths) == 0 {
