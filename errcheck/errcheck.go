@@ -10,7 +10,6 @@ import (
 	"golang.org/x/tools/go/packages"
 	"regexp"
 	"sort"
-	"strings"
 )
 
 var errorType *types.Interface
@@ -146,9 +145,9 @@ var generatedCodeRegexp = regexp.MustCompile("^// Code generated .* DO NOT EDIT\
 var dotStar = regexp.MustCompile(".*")
 
 func (c *Checker) shouldSkipFile(file *ast.File, fset *token.FileSet) bool {
-	if strings.HasSuffix(fset.Position(file.Pos()).Filename , ".pb.go"){
-		return true
-	}
+	//if strings.HasSuffix(fset.Position(file.Pos()).Filename , ".pb.go"){
+	//	return true
+	//}
 	if !c.Exclusions.GeneratedFiles {
 		return false
 	}
