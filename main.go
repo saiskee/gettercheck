@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"goprotogettercheck/errcheck"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -10,7 +11,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/kisielk/errcheck/errcheck"
 	"golang.org/x/tools/go/packages"
 )
 
