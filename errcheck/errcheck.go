@@ -141,7 +141,7 @@ func (c *Checker) LoadPackages(paths ...string) ([]*packages.Package, error) {
 	return loadPackages(cfg, paths...)
 }
 
-var generatedCodeRegexp = regexp.MustCompile("^\\/\\/\\w*Code generated .* DO NOT EDIT\\.$")
+var generatedCodeRegexp = regexp.MustCompile(`^//\s+Code generated.*DO NOT EDIT\.$`)
 var dotStar = regexp.MustCompile(".*")
 
 func (c *Checker) shouldSkipFile(file *ast.File, fset *token.FileSet) bool {
@@ -155,6 +155,7 @@ func (c *Checker) shouldSkipFile(file *ast.File, fset *token.FileSet) bool {
 	for _, cg := range file.Comments {
 		for _, comment := range cg.List {
 			if generatedCodeRegexp.MatchString(comment.Text) {
+				fmt.Println("hi")
 				return true
 			}
 		}
