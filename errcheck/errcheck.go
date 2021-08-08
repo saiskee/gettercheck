@@ -2,14 +2,18 @@
 package errcheck
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"go/ast"
+	"go/format"
 	"go/token"
 	"go/types"
+	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/packages"
 	"regexp"
 	"sort"
+	"strings"
 )
 
 var errorType *types.Interface
@@ -184,7 +188,18 @@ func (c *Checker) CheckPackage(pkg *packages.Package) Result {
 			continue
 		}
 
-		ast.Walk(v, astFile)
+		//ast.Walk(v, astFile)
+		newFile := astutil.Apply(astFile, v.Visit,nil)
+		buf := &bytes.Buffer{}
+		err := format.Node(buf, v.fset, newFile)
+		if err != nil {
+			panic(fmt.Errorf("error formatting new code: %w", err))
+		}
+		if strings.Contains(v.fset.Position(astFile.Pos()).Filename, "main.go"){
+			fmt.Printf("Bytes: \n%s", buf.Bytes())
+		}
 	}
 	return Result{UnusedGetterError: v.errors}
+	//todo: Undo this
+	//return Result{}
 }

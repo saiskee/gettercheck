@@ -102,6 +102,8 @@ github.com/envoyproxy/go-control-plane v0.9.9 h1:vQLjymTobffN2R0F8eTqw6q7iozfRO5
 github.com/envoyproxy/go-control-plane v0.9.9/go.mod h1:hliV/p42l8fGbc6Y9bQ70uLwIvmJyVE5k4iMKlh8wCQ=
 github.com/envoyproxy/protoc-gen-validate v0.1.0 h1:EQciDnbrYxy13PgWoY8AqoxGiPrpgBZ1R8UNe3ddc+A=
 github.com/envoyproxy/protoc-gen-validate v0.1.0/go.mod h1:iSmxcyjqTsJpI2R4NaDN7+kN2VEUnK/pcBlmesArF7c=
+github.com/fatih/astrewrite v0.0.0-20191207154002-9094e544fcef h1:NQhozma2hi4BWW5q0qxka4G3bRNf+P/UgdmAVahUabM=
+github.com/fatih/astrewrite v0.0.0-20191207154002-9094e544fcef/go.mod h1:Q9oPjZxY7Z0tvrD5KtBTVLiSwATtmhafFD/Lb0fyzOk=
 github.com/fatih/color v1.7.0/go.mod h1:Zm6kSWBoL9eyXnKyktHP6abPY2pDugNf5KwzbycvMj4=
 github.com/fgrosse/zaptest v1.1.0/go.mod h1:vMnRSul6kW7kIUXZgnZZcDwyTn8k49ODfAULL8nmL5w=
 github.com/flynn/go-shlex v0.0.0-20150515145356-3f9db97f8568/go.mod h1:xEzjJPgXI435gkrCt3MPfRiAkVrwSbHsst4LCFVfpJc=

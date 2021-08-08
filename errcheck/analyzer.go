@@ -1,7 +1,6 @@
 package errcheck
 
 import (
-	"go/ast"
 	"go/token"
 	"reflect"
 
@@ -29,7 +28,8 @@ func runAnalyzer(pass *analysis.Pass) (interface{}, error) {
 			errors:    nil,
 		}
 
-		ast.Walk(v, f)
+		//astutil.Apply(f, v.Visit,nil)
+		//ast.Walk(v, f)
 
 		for _, err := range v.errors {
 			pass.Report(analysis.Diagnostic{

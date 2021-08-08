@@ -1,16 +1,14 @@
 package In
 
-import (
-	//"fmt"
-	envoy_config_route_v3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
-	//envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
-
-)
+import envoy_config_route_v3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 
 func main(){
-	_ = envoy_config_route_v3.Route{
-		Name:                                 envoy_config_route_v3.Route{}.Name,
-	}
+	// todo(sai): resolve Name field error
+	//_ = (&envoy_config_route_v3.Route{
+	//	Name:                                 (&envoy_config_route_v3.Route{}).Name,
+	//}).GetMetadata().FilterMetadata
+	_ = envoy_config_route_v3.WeightedCluster{}.TotalWeight.Value
+	//a.Value = 9
 	//b := envoy_config_core_v3.HeaderValueOption{}
 	//print(b.Header.Value)
 	//fmt.Println(r.Name)

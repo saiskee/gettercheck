@@ -6,6 +6,7 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+	"golang.org/x/tools/go/ast/astutil"
 	"os"
 	"strings"
 
@@ -218,9 +219,10 @@ func readfile(filename string) []string {
 	return lines
 }
 
-func (v *visitor) Visit(node ast.Node) ast.Visitor {
+func (v *visitor) Visit(c *astutil.Cursor) bool {
+	node := c.Node()
 	if node == nil {
-		return nil
+		return false
 	}
 	switch n := node.(type) {
 	case *ast.SelectorExpr:
@@ -228,7 +230,7 @@ func (v *visitor) Visit(node ast.Node) ast.Visitor {
 		switch obj.(type) {
 		case *types.Var:
 		default:
-			return v
+			return true
 		}
 		p := obj.Pos()
 		f := v.fset.File(p)
@@ -241,54 +243,46 @@ func (v *visitor) Visit(node ast.Node) ast.Visitor {
 			if method := FindMethod(typ, getter); method != nil{
 				mPos := method.Pos()
 				goMethodPos := v.fset.File(mPos).Position(mPos)
+				newNode := &ast.SelectorExpr{
+					X: n.X,
+					Sel: &ast.Ident{
+						Name:    getter+"()",
+					},
+				}
 				v.addErrorAtPosition(n.Sel.Pos(), n.Sel, goMethodPos)
+				c.Replace(newNode)
 			}
 		}
 
 	case *ast.KeyValueExpr:
-		ast.Walk(v, n.Value)
-		return nil
+		astutil.Apply(n.Value, v.Visit, nil)
+		return false
 	case *ast.UnaryExpr:
 		switch x := n.X.(type) {
 		case *ast.SelectorExpr:
-			ast.Walk(v, x.X)
-			return nil
+			astutil.Apply(x.X, v.Visit, nil)
+			return false
 		}
-		return &UnaryVisitor{
+		uV := &UnaryVisitor{
 			typesInfo: v.typesInfo,
 			fset:      v.fset,
 		}
+		astutil.Apply(n.X, uV.Visit, nil)
+		return false
 	case *ast.AssignStmt:
 		for i := 0; i < len(n.Rhs); i++ {
-			ast.Walk(v, n.Rhs[i])
+			astutil.Apply(n.Rhs[i], v.Visit, nil)
 		}
 		for i := 0; i < len(n.Lhs); i++ {
 			lNode := n.Lhs[i]
 			switch x := lNode.(type) {
 			case *ast.SelectorExpr:
-				ast.Walk(v, x.X)
+				astutil.Apply(x.X, v.Visit, nil)
 			}
 		}
-		return nil
-	//case *ast.Ident:
-	//	//fmt.Printf("Visiting ident -  %s\n", n.Name)
-	//	obj := v.typesInfo.ObjectOf(n)
-	//	switch obj.(type) {
-	//	case *types.Var:
-	//	default:
-	//		return v
-	//	}
-	//	p := obj.Pos()
-	//	f := v.fset.File(p)
-	//	goPos := f.Position(p)
-	//	// If the variable is from a `.pb.go` file, it has a getter
-	//	// and the getter should be being used instead
-	//	if strings.Contains(goPos.String(), ".pb.go:") {
-	//		v.addErrorAtPosition(n.Pos(), n)
-	//	}
-	//	return nil
+		return false
 	}
-	return v
+	return true
 }
 
 func FindMethod(p types.Type, methodName string)*types.Func{
@@ -317,23 +311,25 @@ type UnaryVisitor struct {
 	fset      *token.FileSet
 }
 
-func (v *UnaryVisitor) Visit(node ast.Node) ast.Visitor {
+func (v *UnaryVisitor) Visit(c *astutil.Cursor) bool {
+	node := c.Node()
 	if node == nil {
-		return nil
+		return false
 	}
 	switch x := node.(type) {
 	case *ast.ParenExpr:
 		if sel, ok := x.X.(*ast.SelectorExpr); ok {
-			ast.Walk(&visitor{
+			rv := &visitor{
 				typesInfo: v.typesInfo,
 				fset:      v.fset,
-			}, sel.X)
+			}
+			astutil.Apply(sel.X, rv.Visit, nil)
 		}
 		if sel, ok := x.X.(*ast.ParenExpr); ok {
-			ast.Walk(v, sel.X)
+			astutil.Apply(sel.X, v.Visit, nil)
 		}
 	case *ast.SelectorExpr:
-		ast.Walk(v, x.X)
+		astutil.Apply(x.X, v.Visit, nil)
 	}
-	return v
+	return true
 }
