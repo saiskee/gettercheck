@@ -180,7 +180,7 @@ func nonVendoredPkgPath(pkgPath string) string {
 // TODO (dtcaciuc) collect token.Pos and then convert them to UnusedGetterError
 // after visitor is done running. This will allow to integrate more cleanly
 // with analyzer so that we don't have to convert Position back to Pos.
-func (v *visitor) addErrorAtPosition(position token.Pos, ident *ast.Ident) {
+func (v *visitor) addErrorAtPosition(position token.Pos, ident *ast.Ident, getterPos token.Position) {
 	pos := v.fset.Position(position)
 	lines, ok := v.lines[pos.Filename]
 	if !ok {
@@ -195,7 +195,12 @@ func (v *visitor) addErrorAtPosition(position token.Pos, ident *ast.Ident) {
 
 	var name = ident.Name
 
-	v.errors = append(v.errors, UnusedGetterError{pos, line, name, name})
+	v.errors = append(v.errors, UnusedGetterError{
+		pos,
+		getterPos,
+		line,
+		name,
+		})
 }
 
 func readfile(filename string) []string {
@@ -236,8 +241,7 @@ func (v *visitor) Visit(node ast.Node) ast.Visitor {
 			if method := FindMethod(typ, getter); method != nil{
 				mPos := method.Pos()
 				goMethodPos := v.fset.File(mPos).Position(mPos)
-				fmt.Println(getter, goMethodPos.String())
-				v.addErrorAtPosition(n.Sel.Pos(), n.Sel)
+				v.addErrorAtPosition(n.Sel.Pos(), n.Sel, goMethodPos)
 			}
 		}
 

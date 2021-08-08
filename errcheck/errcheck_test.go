@@ -495,8 +495,5 @@ func test(t *testing.T, f flags) {
 		if !uncheckedMarkers[m] && !blankMarkers[m] && !assertMarkers[m] {
 			t.Errorf("%d: unexpected error: %v", i, err)
 		}
-		if err.SelectorName != "" && !strings.Contains(err.Line, err.SelectorName) {
-			t.Errorf("the line '%s' must contain the selector '%s'", err.Line, err.SelectorName)
-		}
 	}
 }

@@ -25,10 +25,11 @@ var (
 
 // UnusedGetterError indicates the position of an unused protobuf getter.
 type UnusedGetterError struct {
+	//todo(sai): GetterPos
 	Pos          token.Position
+	GetterPos token.Position
 	Line         string
 	FuncName     string
-	SelectorName string
 }
 
 // Result is returned from the CheckPackage function, and holds all the errors
