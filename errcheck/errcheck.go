@@ -195,9 +195,14 @@ func (c *Checker) CheckPackage(pkg *packages.Package) Result {
 		if err != nil {
 			panic(fmt.Errorf("error formatting new code: %w", err))
 		}
-		if strings.Contains(v.fset.Position(astFile.Pos()).Filename, "main.go"){
+		fileName := v.fset.Position(astFile.Pos()).Filename
+		if strings.Contains(fileName, "main.go"){
 			fmt.Printf("Bytes: \n%s", buf.Bytes())
 		}
+		//err = ioutil.WriteAndSyncFile(fileName, buf.Bytes(), 0644)
+		//if err != nil {
+		//	panic(err)
+		//}
 	}
 	return Result{UnusedGetterError: v.errors}
 	//todo: Undo this

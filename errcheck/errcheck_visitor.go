@@ -167,17 +167,6 @@ func (v *visitor) argName(expr ast.Expr) string {
 	return t.String()
 }
 
-// nonVendoredPkgPath returns the unvendored version of the provided package
-// path (or returns the provided path if it does not represent a vendored
-// path).
-func nonVendoredPkgPath(pkgPath string) string {
-	lastVendorIndex := strings.LastIndex(pkgPath, "/vendor/")
-	if lastVendorIndex == -1 {
-		return pkgPath
-	}
-	return pkgPath[lastVendorIndex+len("/vendor/"):]
-}
-
 // TODO (dtcaciuc) collect token.Pos and then convert them to UnusedGetterError
 // after visitor is done running. This will allow to integrate more cleanly
 // with analyzer so that we don't have to convert Position back to Pos.
@@ -253,34 +242,44 @@ func (v *visitor) Visit(c *astutil.Cursor) bool {
 				c.Replace(newNode)
 			}
 		}
-
+		return true
 	case *ast.KeyValueExpr:
-		astutil.Apply(n.Value, v.Visit, nil)
-		return false
+ 			res := astutil.Apply(n.Value, v.Visit, nil)
+			n.Value = res.(ast.Expr)
+ 			c.Replace(n)
+		return true
 	case *ast.UnaryExpr:
 		switch x := n.X.(type) {
 		case *ast.SelectorExpr:
-			astutil.Apply(x.X, v.Visit, nil)
-			return false
+			res := astutil.Apply(x.X, v.Visit, nil)
+			x.X = res.(ast.Expr)
+			// todo: potential bug?
+			c.Replace(n)
+			return true
 		}
 		uV := &UnaryVisitor{
 			typesInfo: v.typesInfo,
 			fset:      v.fset,
 		}
-		astutil.Apply(n.X, uV.Visit, nil)
-		return false
+		res := astutil.Apply(n.X, uV.Visit, nil)
+		n.X = res.(ast.Expr)
+		c.Replace(n)
+		return true
 	case *ast.AssignStmt:
 		for i := 0; i < len(n.Rhs); i++ {
-			astutil.Apply(n.Rhs[i], v.Visit, nil)
+			res := astutil.Apply(n.Rhs[i], v.Visit, nil)
+			n.Rhs[i] = res.(ast.Expr)
 		}
 		for i := 0; i < len(n.Lhs); i++ {
 			lNode := n.Lhs[i]
 			switch x := lNode.(type) {
 			case *ast.SelectorExpr:
-				astutil.Apply(x.X, v.Visit, nil)
+				res := astutil.Apply(x.X, v.Visit, nil)
+				n.Lhs[i] = res.(ast.Expr)
 			}
 		}
-		return false
+		c.Replace(n)
+		return true
 	}
 	return true
 }
@@ -323,13 +322,17 @@ func (v *UnaryVisitor) Visit(c *astutil.Cursor) bool {
 				typesInfo: v.typesInfo,
 				fset:      v.fset,
 			}
-			astutil.Apply(sel.X, rv.Visit, nil)
+			res := astutil.Apply(sel.X, rv.Visit, nil)
+			sel.X = res.(ast.Expr)
 		}
 		if sel, ok := x.X.(*ast.ParenExpr); ok {
-			astutil.Apply(sel.X, v.Visit, nil)
+			res := astutil.Apply(sel.X, v.Visit, nil)
+			sel.X = res.(ast.Expr)
 		}
 	case *ast.SelectorExpr:
-		astutil.Apply(x.X, v.Visit, nil)
+		res := astutil.Apply(x.X, v.Visit, nil)
+		x.X = res.(ast.Expr)
 	}
+	c.Replace(node)
 	return true
 }
