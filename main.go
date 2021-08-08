@@ -98,7 +98,7 @@ func reportResult(e errcheck.Result) {
 			}
 		}
 		// Print result to stdout
-		fmt.Printf("%s:\t%s\t%s\n\tGetter at %s\n\n", pos, unusedGetterError.FuncName, unusedGetterError.Line, unusedGetterError.GetterPos.String())
+		fmt.Printf("%s:\t%s\t%s\n\tGetter at %s\n", pos, unusedGetterError.FuncName, unusedGetterError.Line, unusedGetterError.GetterPos.String())
 	}
 }
 
