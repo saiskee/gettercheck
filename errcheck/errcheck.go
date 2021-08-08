@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/coreos/etcd/pkg/ioutil"
 	"go/ast"
 	"go/format"
 	"go/token"
@@ -30,10 +31,10 @@ var (
 // UnusedGetterError indicates the position of an unused protobuf getter.
 type UnusedGetterError struct {
 	//todo(sai): GetterPos
-	Pos          token.Position
+	Pos       token.Position
 	GetterPos token.Position
-	Line         string
-	FuncName     string
+	Line      string
+	FuncName  string
 }
 
 // Result is returned from the CheckPackage function, and holds all the errors
@@ -189,20 +190,20 @@ func (c *Checker) CheckPackage(pkg *packages.Package) Result {
 		}
 
 		//ast.Walk(v, astFile)
-		newFile := astutil.Apply(astFile, v.Visit,nil)
+		newFile := astutil.Apply(astFile, v.Visit, nil)
 		buf := &bytes.Buffer{}
 		err := format.Node(buf, v.fset, newFile)
 		if err != nil {
 			panic(fmt.Errorf("error formatting new code: %w", err))
 		}
 		fileName := v.fset.Position(astFile.Pos()).Filename
-		if strings.Contains(fileName, "main.go"){
+		if strings.Contains(fileName, "main.go") {
 			fmt.Printf("Bytes: \n%s", buf.Bytes())
 		}
-		//err = ioutil.WriteAndSyncFile(fileName, buf.Bytes(), 0644)
-		//if err != nil {
-		//	panic(err)
-		//}
+		err = ioutil.WriteAndSyncFile(fileName, buf.Bytes(), 0644)
+		if err != nil {
+			panic(err)
+		}
 	}
 	return Result{UnusedGetterError: v.errors}
 	//todo: Undo this

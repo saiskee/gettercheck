@@ -190,7 +190,7 @@ func (v *visitor) addErrorAtPosition(position token.Pos, ident *ast.Ident, gette
 		getterPos,
 		line,
 		name,
-		})
+	})
 }
 
 func readfile(filename string) []string {
@@ -229,13 +229,13 @@ func (v *visitor) Visit(c *astutil.Cursor) bool {
 		if strings.Contains(goPos.String(), ".pb.go:") {
 			getter := fmt.Sprintf("Get%s", n.Sel.Name)
 			typ := v.typesInfo.TypeOf(n.X)
-			if method := FindMethod(typ, getter); method != nil{
+			if method := FindMethod(typ, getter); method != nil {
 				mPos := method.Pos()
 				goMethodPos := v.fset.File(mPos).Position(mPos)
 				newNode := &ast.SelectorExpr{
 					X: n.X,
 					Sel: &ast.Ident{
-						Name:    getter+"()",
+						Name: getter + "()",
 					},
 				}
 				v.addErrorAtPosition(n.Sel.Pos(), n.Sel, goMethodPos)
@@ -244,9 +244,9 @@ func (v *visitor) Visit(c *astutil.Cursor) bool {
 		}
 		return true
 	case *ast.KeyValueExpr:
- 			res := astutil.Apply(n.Value, v.Visit, nil)
-			n.Value = res.(ast.Expr)
- 			c.Replace(n)
+		res := astutil.Apply(n.Value, v.Visit, nil)
+		n.Value = res.(ast.Expr)
+		c.Replace(n)
 		return true
 	case *ast.UnaryExpr:
 		switch x := n.X.(type) {
@@ -275,7 +275,7 @@ func (v *visitor) Visit(c *astutil.Cursor) bool {
 			switch x := lNode.(type) {
 			case *ast.SelectorExpr:
 				res := astutil.Apply(x.X, v.Visit, nil)
-				n.Lhs[i] = res.(ast.Expr)
+				x.X = res.(ast.Expr)
 			}
 		}
 		c.Replace(n)
@@ -284,14 +284,14 @@ func (v *visitor) Visit(c *astutil.Cursor) bool {
 	return true
 }
 
-func FindMethod(p types.Type, methodName string)*types.Func{
-	switch typ := p.(type){
+func FindMethod(p types.Type, methodName string) *types.Func {
+	switch typ := p.(type) {
 	case *types.Pointer:
 		return FindMethod(typ.Elem(), methodName)
 	case *types.Named:
-		for i := 0; i < typ.NumMethods(); i++{
+		for i := 0; i < typ.NumMethods(); i++ {
 			method := typ.Method(i)
-			if method.Name() == methodName{
+			if method.Name() == methodName {
 				return method
 			}
 		}
@@ -300,8 +300,7 @@ func FindMethod(p types.Type, methodName string)*types.Func{
 	return nil
 }
 
-
-func print(f interface{}){
+func print(f interface{}) {
 	fmt.Printf("debug - %+v\n", f)
 }
 
