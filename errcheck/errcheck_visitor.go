@@ -215,6 +215,14 @@ func (v *visitor) Visit(c *astutil.Cursor) bool {
 	}
 	switch n := node.(type) {
 	case *ast.SelectorExpr:
+		switch p := c.Parent().(type){
+		case *ast.AssignStmt:
+			return true
+		case *ast.UnaryExpr:
+			if p.Op == token.AND {
+				return true
+			}
+		}
 		if _, ok := c.Parent().(*ast.AssignStmt); ok {
 			return true
 		}
@@ -263,21 +271,6 @@ func (v *visitor) Visit(c *astutil.Cursor) bool {
 		n.X = res.(ast.Expr)
 		c.Replace(n)
 		return true
-		//case *ast.AssignStmt:
-		//	for i := 0; i < len(n.Rhs); i++ {
-		//		res := astutil.Apply(n.Rhs[i], v.Visit, nil)
-		//		n.Rhs[i] = res.(ast.Expr)
-		//	}
-		//	for i := 0; i < len(n.Lhs); i++ {
-		//		lNode := n.Lhs[i]
-		//		switch x := lNode.(type) {
-		//		case *ast.SelectorExpr:
-		//			res := astutil.Apply(x.X, v.Visit, nil)
-		//			x.X = res.(ast.Expr)
-		//		}
-		//	}
-		//	c.Replace(n)
-		//	return true
 	}
 	return true
 }
