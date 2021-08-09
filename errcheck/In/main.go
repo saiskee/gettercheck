@@ -7,7 +7,8 @@ func main() {
 	//_ = (&envoy_config_route_v3.Route{
 	//	Name:                                 (&envoy_config_route_v3.Route{}).Name,
 	//}).GetMetadata().FilterMetadata
-	_ = envoy_config_route_v3.WeightedCluster{}.GetTotalWeight().GetValue()
+	a := envoy_config_route_v3.VirtualHost{}
+	_ = a.GetCors().GetAllowCredentials().GetValue()
 	//a.Value = 9
 	//b := envoy_config_core_v3.HeaderValueOption{}
 	//print(b.Header.Value)

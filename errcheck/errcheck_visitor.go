@@ -227,19 +227,17 @@ func (v *visitor) Visit(c *astutil.Cursor) bool {
 		// If the variable is from a `.pb.go` file, it has a getter
 		// and the getter should be being used instead
 		if strings.Contains(goPos.String(), ".pb.go:") {
+			if n.Sel.Name == "AllowCredentials" {
+				fmt.Println("hi")
+			}
 			getter := fmt.Sprintf("Get%s", n.Sel.Name)
 			typ := v.typesInfo.TypeOf(n.X)
 			if method := FindMethod(typ, getter); method != nil {
 				mPos := method.Pos()
 				goMethodPos := v.fset.File(mPos).Position(mPos)
-				newNode := &ast.SelectorExpr{
-					X: n.X,
-					Sel: &ast.Ident{
-						Name: getter + "()",
-					},
-				}
+				n.Sel.Name = getter + "()"
 				v.addErrorAtPosition(n.Sel.Pos(), n.Sel, goMethodPos)
-				c.Replace(newNode)
+				c.Replace(n)
 			}
 		}
 		return true

@@ -205,7 +205,9 @@ func (c *Checker) CheckPackage(pkg *packages.Package) Result {
 			panic(err)
 		}
 	}
-	return Result{UnusedGetterError: v.errors}
+	return Result{
+		UnusedGetterError: v.errors,
+	}
 	//todo: Undo this
 	//return Result{}
 }
