@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/coreos/etcd/pkg/ioutil"
 	"go/ast"
 	"go/format"
 	"go/token"
@@ -199,10 +200,10 @@ func (c *Checker) CheckPackage(pkg *packages.Package) Result {
 		if strings.Contains(fileName, "main.go") {
 			//fmt.Printf("Bytes: \n%s", buf.Bytes())
 		}
-		//err = ioutil.WriteAndSyncFile(fileName, buf.Bytes(), 0644)
-		//if err != nil {
-		//	panic(err)
-		//}
+		err = ioutil.WriteAndSyncFile(fileName, buf.Bytes(), 0644)
+		if err != nil {
+			panic(err)
+		}
 	}
 	return Result{
 		UnusedGetterError: v.errors,
