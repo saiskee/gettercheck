@@ -177,13 +177,11 @@ func parseFlags(checker *errcheck.Checker, args []string) ([]string, int) {
 	flags.BoolVar(&verbose, "verbose", false, "produce more verbose logging")
 	flags.BoolVar(&abspath, "abspath", false, "print absolute paths to files")
 
-
 	flags.StringVar(&checker.Mod, "mod", "", "module download mode to use: readonly or vendor. See 'go help modules' for more.")
 
 	if err := flags.Parse(args[1:]); err != nil {
 		return nil, exitFatalError
 	}
-
 
 	paths := flags.Args()
 	if len(paths) == 0 {

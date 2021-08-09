@@ -215,6 +215,9 @@ func (v *visitor) Visit(c *astutil.Cursor) bool {
 	}
 	switch n := node.(type) {
 	case *ast.SelectorExpr:
+		if _, ok := c.Parent().(*ast.AssignStmt); ok {
+			return true
+		}
 		obj := v.typesInfo.ObjectOf(n.Sel)
 		switch obj.(type) {
 		case *types.Var:
@@ -227,9 +230,6 @@ func (v *visitor) Visit(c *astutil.Cursor) bool {
 		// If the variable is from a `.pb.go` file, it has a getter
 		// and the getter should be being used instead
 		if strings.Contains(goPos.String(), ".pb.go:") {
-			if n.Sel.Name == "AllowCredentials" {
-				fmt.Println("hi")
-			}
 			getter := fmt.Sprintf("Get%s", n.Sel.Name)
 			typ := v.typesInfo.TypeOf(n.X)
 			if method := FindMethod(typ, getter); method != nil {
@@ -263,21 +263,21 @@ func (v *visitor) Visit(c *astutil.Cursor) bool {
 		n.X = res.(ast.Expr)
 		c.Replace(n)
 		return true
-	case *ast.AssignStmt:
-		for i := 0; i < len(n.Rhs); i++ {
-			res := astutil.Apply(n.Rhs[i], v.Visit, nil)
-			n.Rhs[i] = res.(ast.Expr)
-		}
-		for i := 0; i < len(n.Lhs); i++ {
-			lNode := n.Lhs[i]
-			switch x := lNode.(type) {
-			case *ast.SelectorExpr:
-				res := astutil.Apply(x.X, v.Visit, nil)
-				x.X = res.(ast.Expr)
-			}
-		}
-		c.Replace(n)
-		return true
+		//case *ast.AssignStmt:
+		//	for i := 0; i < len(n.Rhs); i++ {
+		//		res := astutil.Apply(n.Rhs[i], v.Visit, nil)
+		//		n.Rhs[i] = res.(ast.Expr)
+		//	}
+		//	for i := 0; i < len(n.Lhs); i++ {
+		//		lNode := n.Lhs[i]
+		//		switch x := lNode.(type) {
+		//		case *ast.SelectorExpr:
+		//			res := astutil.Apply(x.X, v.Visit, nil)
+		//			x.X = res.(ast.Expr)
+		//		}
+		//	}
+		//	c.Replace(n)
+		//	return true
 	}
 	return true
 }
@@ -297,6 +297,10 @@ func FindMethod(p types.Type, methodName string) *types.Func {
 	}
 	return nil
 }
+
+//func (v *visitor) VisitAssignStmt(c *astutil.Cursor) bool {
+//
+//}
 
 func print(f interface{}) {
 	fmt.Printf("debug - %+v\n", f)
