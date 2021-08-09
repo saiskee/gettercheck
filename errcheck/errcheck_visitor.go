@@ -3,6 +3,7 @@ package errcheck
 import (
 	"bufio"
 	"fmt"
+	"github.com/solo-io/go-utils/stringutils"
 	"go/ast"
 	"go/token"
 	"go/types"
@@ -218,6 +219,22 @@ func (v *visitor) Visit(c *astutil.Cursor) bool {
 		switch p := c.Parent().(type){
 		case *ast.AssignStmt:
 			return true
+		case *ast.BinaryExpr:
+			if p.Op == token.EQL{
+				if i, ok := p.Y.(*ast.Ident); ok {
+					if v.typesInfo.TypeOf(i).String() == "untyped nil"{
+						if sel, ok := p.X.(*ast.SelectorExpr); ok {
+							b := v.typesInfo.TypeOf(sel.Sel)
+							basicPointerTypes := []string{"*string", "*int", "*bool", "*int", "*int32", "*int64", "*float32", "*float64", "*uint32", "*uint64" }
+							if stringutils.ContainsString(b.String(), basicPointerTypes){
+								return true
+							}
+							fmt.Println(b.String())
+							//if b.String() == "hi"{}
+						}
+					}
+				}
+			}
 		case *ast.UnaryExpr:
 			if p.Op == token.AND {
 				return true
