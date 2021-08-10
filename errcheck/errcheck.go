@@ -14,7 +14,6 @@ import (
 	"golang.org/x/tools/go/packages"
 	"regexp"
 	"sort"
-	"strings"
 )
 
 var errorType *types.Interface
@@ -189,7 +188,6 @@ func (c *Checker) CheckPackage(pkg *packages.Package) Result {
 			continue
 		}
 
-		//ast.Walk(v, astFile)
 		newFile := astutil.Apply(astFile, v.Visit, nil)
 		buf := &bytes.Buffer{}
 		err := format.Node(buf, v.fset, newFile)
@@ -197,9 +195,6 @@ func (c *Checker) CheckPackage(pkg *packages.Package) Result {
 			panic(fmt.Errorf("error formatting new code: %w", err))
 		}
 		fileName := v.fset.Position(astFile.Pos()).Filename
-		if strings.Contains(fileName, "main.go") {
-			//fmt.Printf("Bytes: \n%s", buf.Bytes())
-		}
 		err = ioutil.WriteAndSyncFile(fileName, buf.Bytes(), 0644)
 		if err != nil {
 			panic(err)
@@ -208,6 +203,4 @@ func (c *Checker) CheckPackage(pkg *packages.Package) Result {
 	return Result{
 		UnusedGetterError: v.errors,
 	}
-	//todo: Undo this
-	//return Result{}
 }

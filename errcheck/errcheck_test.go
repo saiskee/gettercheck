@@ -12,7 +12,7 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
-const testPackage = "github.com/kisielk/errcheck/testdata"
+const testPackage = "github.com/saiskee/goprotogettercheck/testdata"
 
 var (
 	uncheckedMarkers map[marker]bool
