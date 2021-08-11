@@ -191,8 +191,6 @@ func (v *visitor) Visit(c *astutil.Cursor) bool {
 							if contains(basicPointerTypes, b.String()) {
 								return true
 							}
-							fmt.Println(b.String())
-							//if b.Name() == "hi"{}
 						}
 					}
 				}
