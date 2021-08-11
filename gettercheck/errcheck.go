@@ -5,7 +5,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/coreos/etcd/pkg/ioutil"
+	"io/ioutil"
 	"go/ast"
 	"go/format"
 	"go/token"
@@ -151,7 +151,6 @@ func (c *Checker) shouldSkipFile(file *ast.File) bool {
 	for _, cg := range file.Comments {
 		for _, comment := range cg.List {
 			if generatedCodeRegexp.MatchString(comment.Text) {
-				fmt.Println(comment.Text)
 				return true
 			}
 		}
@@ -188,7 +187,7 @@ func (c *Checker) CheckPackage(pkg *packages.Package) Result {
 				panic(fmt.Errorf("error creating formatted code: %w", err))
 			}
 			fileName := v.fset.Position(astFile.Pos()).Filename
-			err = ioutil.WriteAndSyncFile(fileName, buf.Bytes(), 0644)
+			err = ioutil.WriteFile(fileName, buf.Bytes(), 0644)
 			if err != nil {
 				panic(err)
 			}

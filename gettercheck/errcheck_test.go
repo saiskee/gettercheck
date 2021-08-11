@@ -2,10 +2,10 @@ package gettercheck_test
 
 import (
 	"fmt"
-	"github.com/coreos/etcd/pkg/ioutil"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/saiskee/gettercheck/gettercheck"
+	"io/ioutil"
 	"strings"
 )
 
@@ -179,6 +179,6 @@ WriteMain(toWrite)
 
 func WriteMain(contents string){
 	fileToWrite := strings.TrimSpace(contents)
-	err := ioutil.WriteAndSyncFile("testdata/src/main.go", []byte(fileToWrite), 0644)
+	err := ioutil.WriteFile("testdata/src/main.go", []byte(fileToWrite), 0644)
 	ExpectWithOffset(1, err).NotTo(HaveOccurred())
 }

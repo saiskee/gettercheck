@@ -3,7 +3,6 @@ package gettercheck
 import (
 	"bufio"
 	"fmt"
-	"github.com/solo-io/go-utils/stringutils"
 	"go/ast"
 	"go/token"
 	"go/types"
@@ -189,7 +188,7 @@ func (v *visitor) Visit(c *astutil.Cursor) bool {
 						if sel, ok := p.X.(*ast.SelectorExpr); ok {
 							b := v.typesInfo.TypeOf(sel.Sel)
 							basicPointerTypes := []string{"*string", "*int", "*bool", "*int", "*int32", "*int64", "*float32", "*float64", "*uint32", "*uint64"}
-							if stringutils.ContainsString(b.String(), basicPointerTypes) {
+							if contains(basicPointerTypes, b.String()) {
 								return true
 							}
 							fmt.Println(b.String())
@@ -299,4 +298,13 @@ func (v *UnaryVisitor) Visit(c *astutil.Cursor) bool {
 	}
 	c.Replace(node)
 	return true
+}
+
+func contains(s []string, e string) bool {
+	for _, a := range s {
+		if a == e {
+			return true
+		}
+	}
+	return false
 }
