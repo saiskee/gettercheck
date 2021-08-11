@@ -1,12 +1,16 @@
-// Package errcheck is the library used to implement the errcheck command-line tool.
-package errcheck
+// Package gettercheck is the library used to implement the gettercheck command-line tool.
+package gettercheck
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+	"github.com/coreos/etcd/pkg/ioutil"
 	"go/ast"
+	"go/format"
 	"go/token"
 	"go/types"
+	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/packages"
 	"regexp"
 	"sort"
@@ -26,10 +30,10 @@ var (
 // UnusedGetterError indicates the position of an unused protobuf getter.
 type UnusedGetterError struct {
 	//todo(sai): GetterPos
-	Pos          token.Position
+	Pos       token.Position
 	GetterPos token.Position
-	Line         string
-	FuncName     string
+	Line      string
+	FuncName  string
 }
 
 // Result is returned from the CheckPackage function, and holds all the errors
@@ -115,8 +119,7 @@ type Checker struct {
 	// Exclusions defines code packages, symbols, and other elements that will not be checked.
 	Exclusions Exclusions
 
-	// Tags are a list of build tags to use.
-	Tags []string
+	WriteGetters bool
 
 	// The mod flag for go build.
 	Mod string
@@ -130,14 +133,9 @@ var loadPackages = func(cfg *packages.Config, paths ...string) ([]*packages.Pack
 // LoadPackages loads all the packages in all the paths provided. It uses the
 // exclusions and build tags provided to by the user when loading the packages.
 func (c *Checker) LoadPackages(paths ...string) ([]*packages.Package, error) {
-	buildFlags := []string{fmtTags(c.Tags)}
-	if c.Mod != "" {
-		buildFlags = append(buildFlags, fmt.Sprintf("-mod=%s", c.Mod))
-	}
 	cfg := &packages.Config{
-		Mode:       packages.LoadAllSyntax,
-		Tests:      !c.Exclusions.TestFiles,
-		BuildFlags: buildFlags,
+		Mode:  packages.LoadAllSyntax,
+		Tests: !c.Exclusions.TestFiles,
 	}
 	return loadPackages(cfg, paths...)
 }
@@ -145,10 +143,7 @@ func (c *Checker) LoadPackages(paths ...string) ([]*packages.Package, error) {
 var generatedCodeRegexp = regexp.MustCompile(`^//\s+Code generated.*DO NOT EDIT\.$`)
 var dotStar = regexp.MustCompile(".*")
 
-func (c *Checker) shouldSkipFile(file *ast.File, fset *token.FileSet) bool {
-	//if strings.HasSuffix(fset.Position(file.Pos()).Filename , ".pb.go"){
-	//	return true
-	//}
+func (c *Checker) shouldSkipFile(file *ast.File) bool {
 	if !c.Exclusions.GeneratedFiles {
 		return false
 	}
@@ -156,6 +151,7 @@ func (c *Checker) shouldSkipFile(file *ast.File, fset *token.FileSet) bool {
 	for _, cg := range file.Comments {
 		for _, comment := range cg.List {
 			if generatedCodeRegexp.MatchString(comment.Text) {
+				fmt.Println(comment.Text)
 				return true
 			}
 		}
@@ -180,11 +176,25 @@ func (c *Checker) CheckPackage(pkg *packages.Package) Result {
 	}
 
 	for _, astFile := range pkg.Syntax {
-		if c.shouldSkipFile(astFile, v.fset) {
+		if c.shouldSkipFile(astFile) {
 			continue
 		}
 
-		ast.Walk(v, astFile)
+		newFile := astutil.Apply(astFile, v.Visit, nil)
+		if c.WriteGetters {
+			buf := &bytes.Buffer{}
+			err := format.Node(buf, v.fset, newFile)
+			if err != nil {
+				panic(fmt.Errorf("error creating formatted code: %w", err))
+			}
+			fileName := v.fset.Position(astFile.Pos()).Filename
+			err = ioutil.WriteAndSyncFile(fileName, buf.Bytes(), 0644)
+			if err != nil {
+				panic(err)
+			}
+		}
 	}
-	return Result{UnusedGetterError: v.errors}
+	return Result{
+		UnusedGetterError: v.errors,
+	}
 }

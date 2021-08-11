@@ -1,18 +1,20 @@
-package errcheck
+package gettercheck
 
 import (
 	"bufio"
 	"fmt"
+	"github.com/solo-io/go-utils/stringutils"
 	"go/ast"
 	"go/token"
 	"go/types"
+	"golang.org/x/tools/go/ast/astutil"
 	"os"
 	"strings"
 
 	"golang.org/x/tools/go/packages"
 )
 
-// visitor implements the errcheck algorithm
+// visitor implements the gettercheck algorithm
 type visitor struct {
 	types     *types.Package
 	typesInfo *types.Info
@@ -103,51 +105,6 @@ func (v *visitor) selectorName(call *ast.CallExpr) string {
 	return getSelectorName(sel)
 }
 
-// namesForExcludeCheck will return a list of fully-qualified function names
-// from a function call that can be used to check against the exclusion list.
-//
-// If a function call is against a local function (like "myFunc()") then no
-// names are returned. If the function is package-qualified (like "fmt.Printf()")
-// then just that function's fullName is returned.
-//
-// Otherwise, we walk through all the potentially embeddded interfaces of the receiver
-// the collect a list of type-qualified function names that we will check.
-func (v *visitor) namesForExcludeCheck(call *ast.CallExpr) []string {
-	sel, fn, ok := v.selectorAndFunc(call)
-	if !ok {
-		return nil
-	}
-
-	name := v.fullName(call)
-	if name == "" {
-		return nil
-	}
-
-	// This will be missing for functions without a receiver (like fmt.Printf),
-	// so just fall back to the the function's fullName in that case.
-	selection, ok := v.typesInfo.Selections[sel]
-	if !ok {
-		return []string{name}
-	}
-
-	// This will return with ok false if the function isn't defined
-	// on an interface, so just fall back to the fullName.
-	ts, ok := walkThroughEmbeddedInterfaces(selection)
-	if !ok {
-		return []string{name}
-	}
-
-	result := make([]string, len(ts))
-	for i, t := range ts {
-		// Like in fullName, vendored packages will have /vendor/ in their name,
-		// thus not matching vendored standard library packages. If we
-		// want to support vendored stdlib packages, we need to implement
-		// additional logic here.
-		result[i] = fmt.Sprintf("(%s).%s", t.String(), fn.Name())
-	}
-	return result
-}
-
 // isBufferType checks if the expression type is a known in-memory buffer type.
 func (v *visitor) argName(expr ast.Expr) string {
 	// Special-case literal "os.Stdout" and "os.Stderr"
@@ -164,17 +121,6 @@ func (v *visitor) argName(expr ast.Expr) string {
 		return ""
 	}
 	return t.String()
-}
-
-// nonVendoredPkgPath returns the unvendored version of the provided package
-// path (or returns the provided path if it does not represent a vendored
-// path).
-func nonVendoredPkgPath(pkgPath string) string {
-	lastVendorIndex := strings.LastIndex(pkgPath, "/vendor/")
-	if lastVendorIndex == -1 {
-		return pkgPath
-	}
-	return pkgPath[lastVendorIndex+len("/vendor/"):]
 }
 
 // TODO (dtcaciuc) collect token.Pos and then convert them to UnusedGetterError
@@ -200,7 +146,7 @@ func (v *visitor) addErrorAtPosition(position token.Pos, ident *ast.Ident, gette
 		getterPos,
 		line,
 		name,
-		})
+	})
 }
 
 func readfile(filename string) []string {
@@ -218,17 +164,51 @@ func readfile(filename string) []string {
 	return lines
 }
 
-func (v *visitor) Visit(node ast.Node) ast.Visitor {
+func (v *visitor) Visit(c *astutil.Cursor) bool {
+	node := c.Node()
 	if node == nil {
-		return nil
+		return false
 	}
 	switch n := node.(type) {
 	case *ast.SelectorExpr:
+		// this switch controls for special cases where we may
+		// not want to use the getter
+		switch p := c.Parent().(type) {
+			case *ast.AssignStmt:
+				// If the parent is an assignment statement, we only want to
+				// report if it's not on the left hand side (e.g. we are not setting this value)
+				for _, i := range p.Lhs{
+					if n == i {
+						return true
+					}
+				}
+		case *ast.BinaryExpr:
+			if p.Op == token.EQL {
+				if i, ok := p.Y.(*ast.Ident); ok {
+					if v.typesInfo.TypeOf(i).String() == "untyped nil" {
+						if sel, ok := p.X.(*ast.SelectorExpr); ok {
+							b := v.typesInfo.TypeOf(sel.Sel)
+							basicPointerTypes := []string{"*string", "*int", "*bool", "*int", "*int32", "*int64", "*float32", "*float64", "*uint32", "*uint64"}
+							if stringutils.ContainsString(b.String(), basicPointerTypes) {
+								return true
+							}
+							fmt.Println(b.String())
+							//if b.Name() == "hi"{}
+						}
+					}
+				}
+			}
+		case *ast.UnaryExpr:
+			if p.Op == token.AND {
+				return true
+			}
+		}
+
 		obj := v.typesInfo.ObjectOf(n.Sel)
 		switch obj.(type) {
 		case *types.Var:
 		default:
-			return v
+			return true
 		}
 		p := obj.Pos()
 		f := v.fset.File(p)
@@ -238,67 +218,49 @@ func (v *visitor) Visit(node ast.Node) ast.Visitor {
 		if strings.Contains(goPos.String(), ".pb.go:") {
 			getter := fmt.Sprintf("Get%s", n.Sel.Name)
 			typ := v.typesInfo.TypeOf(n.X)
-			if method := FindMethod(typ, getter); method != nil{
+			if method := FindMethod(typ, getter); method != nil {
 				mPos := method.Pos()
 				goMethodPos := v.fset.File(mPos).Position(mPos)
+				n.Sel.Name = getter + "()"
 				v.addErrorAtPosition(n.Sel.Pos(), n.Sel, goMethodPos)
+				c.Replace(n)
 			}
 		}
-
+		return true
 	case *ast.KeyValueExpr:
-		ast.Walk(v, n.Value)
-		return nil
+		res := astutil.Apply(n.Value, v.Visit, nil)
+		n.Value = res.(ast.Expr)
+		c.Replace(n)
+		return true
 	case *ast.UnaryExpr:
 		switch x := n.X.(type) {
 		case *ast.SelectorExpr:
-			ast.Walk(v, x.X)
-			return nil
+			res := astutil.Apply(x.X, v.Visit, nil)
+			x.X = res.(ast.Expr)
+			// todo: potential bug?
+			c.Replace(n)
+			return true
 		}
-		return &UnaryVisitor{
+		uV := &UnaryVisitor{
 			typesInfo: v.typesInfo,
 			fset:      v.fset,
 		}
-	case *ast.AssignStmt:
-		for i := 0; i < len(n.Rhs); i++ {
-			ast.Walk(v, n.Rhs[i])
-		}
-		for i := 0; i < len(n.Lhs); i++ {
-			lNode := n.Lhs[i]
-			switch x := lNode.(type) {
-			case *ast.SelectorExpr:
-				ast.Walk(v, x.X)
-			}
-		}
-		return nil
-	//case *ast.Ident:
-	//	//fmt.Printf("Visiting ident -  %s\n", n.Name)
-	//	obj := v.typesInfo.ObjectOf(n)
-	//	switch obj.(type) {
-	//	case *types.Var:
-	//	default:
-	//		return v
-	//	}
-	//	p := obj.Pos()
-	//	f := v.fset.File(p)
-	//	goPos := f.Position(p)
-	//	// If the variable is from a `.pb.go` file, it has a getter
-	//	// and the getter should be being used instead
-	//	if strings.Contains(goPos.String(), ".pb.go:") {
-	//		v.addErrorAtPosition(n.Pos(), n)
-	//	}
-	//	return nil
+		res := astutil.Apply(n.X, uV.Visit, nil)
+		n.X = res.(ast.Expr)
+		c.Replace(n)
+		return true
 	}
-	return v
+	return true
 }
 
-func FindMethod(p types.Type, methodName string)*types.Func{
-	switch typ := p.(type){
+func FindMethod(p types.Type, methodName string) *types.Func {
+	switch typ := p.(type) {
 	case *types.Pointer:
 		return FindMethod(typ.Elem(), methodName)
 	case *types.Named:
-		for i := 0; i < typ.NumMethods(); i++{
+		for i := 0; i < typ.NumMethods(); i++ {
 			method := typ.Method(i)
-			if method.Name() == methodName{
+			if method.Name() == methodName {
 				return method
 			}
 		}
@@ -307,33 +269,34 @@ func FindMethod(p types.Type, methodName string)*types.Func{
 	return nil
 }
 
-
-func print(f interface{}){
-	fmt.Printf("debug - %+v\n", f)
-}
-
 type UnaryVisitor struct {
 	typesInfo *types.Info
 	fset      *token.FileSet
 }
 
-func (v *UnaryVisitor) Visit(node ast.Node) ast.Visitor {
+func (v *UnaryVisitor) Visit(c *astutil.Cursor) bool {
+	node := c.Node()
 	if node == nil {
-		return nil
+		return false
 	}
 	switch x := node.(type) {
 	case *ast.ParenExpr:
 		if sel, ok := x.X.(*ast.SelectorExpr); ok {
-			ast.Walk(&visitor{
+			rv := &visitor{
 				typesInfo: v.typesInfo,
 				fset:      v.fset,
-			}, sel.X)
+			}
+			res := astutil.Apply(sel.X, rv.Visit, nil)
+			sel.X = res.(ast.Expr)
 		}
 		if sel, ok := x.X.(*ast.ParenExpr); ok {
-			ast.Walk(v, sel.X)
+			res := astutil.Apply(sel.X, v.Visit, nil)
+			sel.X = res.(ast.Expr)
 		}
 	case *ast.SelectorExpr:
-		ast.Walk(v, x.X)
+		res := astutil.Apply(x.X, v.Visit, nil)
+		x.X = res.(ast.Expr)
 	}
-	return v
+	c.Replace(node)
+	return true
 }

@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/saiskee/goprotogettercheck/errcheck"
+	"github.com/saiskee/gettercheck/gettercheck"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -63,28 +63,8 @@ func (f ignoreFlag) Set(s string) error {
 	return nil
 }
 
-type tagsFlag []string
 
-func (f *tagsFlag) String() string {
-	return fmt.Sprintf("%q", strings.Join(*f, ","))
-}
-
-func (f *tagsFlag) Set(s string) error {
-	if s == "" {
-		return nil
-	}
-	tags := strings.FieldsFunc(s, func(c rune) bool {
-		return c == ' ' || c == ','
-	})
-	for _, tag := range tags {
-		if tag != "" {
-			*f = append(*f, tag)
-		}
-	}
-	return nil
-}
-
-func reportResult(e errcheck.Result) {
+func reportResult(e gettercheck.Result) {
 	wd, err := os.Getwd()
 	if err != nil {
 		wd = ""
@@ -109,7 +89,7 @@ func logf(msg string, args ...interface{}) {
 }
 
 func mainCmd(args []string) int {
-	var checker errcheck.Checker
+	var checker gettercheck.Checker
 	paths, rc := parseFlags(&checker, args)
 	if rc != exitCodeOk {
 		return rc
@@ -117,7 +97,7 @@ func mainCmd(args []string) int {
 	// Check paths
 	result, err := checkPaths(&checker, paths...)
 	if err != nil {
-		if err == errcheck.ErrNoGoFiles {
+		if err == gettercheck.ErrNoGoFiles {
 			fmt.Fprintln(os.Stderr, err)
 			return exitCodeOk
 		}
@@ -132,23 +112,23 @@ func mainCmd(args []string) int {
 	return exitCodeOk
 }
 
-func checkPaths(c *errcheck.Checker, paths ...string) (errcheck.Result, error) {
+func checkPaths(c *gettercheck.Checker, paths ...string) (gettercheck.Result, error) {
 	pkgs, err := c.LoadPackages(paths...)
 	if err != nil {
-		return errcheck.Result{}, err
+		return gettercheck.Result{}, err
 	}
 	// Check for errors in the initial packages.
 	work := make(chan *packages.Package, len(pkgs))
 	for _, pkg := range pkgs {
 		if len(pkg.Errors) > 0 {
-			return errcheck.Result{}, fmt.Errorf("errors while loading package %s: %v", pkg.ID, pkg.Errors)
+			return gettercheck.Result{}, fmt.Errorf("errors while loading package %s: %v", pkg.ID, pkg.Errors)
 		}
 		work <- pkg
 	}
 	close(work)
 
 	var wg sync.WaitGroup
-	result := &errcheck.Result{}
+	result := &gettercheck.Result{}
 	mu := &sync.Mutex{}
 	for i := 0; i < runtime.NumCPU(); i++ {
 		wg.Add(1)
@@ -169,21 +149,21 @@ func checkPaths(c *errcheck.Checker, paths ...string) (errcheck.Result, error) {
 	return result.Unique(), nil
 }
 
-func parseFlags(checker *errcheck.Checker, args []string) ([]string, int) {
+func parseFlags(checker *gettercheck.Checker, args []string) ([]string, int) {
 	flags := flag.NewFlagSet(args[0], flag.ContinueOnError)
 
 	flags.BoolVar(&checker.Exclusions.TestFiles, "ignoretests", false, "if true, checking of _test.go files is disabled")
 	flags.BoolVar(&checker.Exclusions.GeneratedFiles, "ignoregenerated", false, "if true, checking of files with generated code is disabled")
+	flags.BoolVar(&checker.WriteGetters, "write", false, "if true, overwrites found non-getter accessors with getters")
+
 	flags.BoolVar(&verbose, "verbose", false, "produce more verbose logging")
 	flags.BoolVar(&abspath, "abspath", false, "print absolute paths to files")
-
 
 	flags.StringVar(&checker.Mod, "mod", "", "module download mode to use: readonly or vendor. See 'go help modules' for more.")
 
 	if err := flags.Parse(args[1:]); err != nil {
 		return nil, exitFatalError
 	}
-
 
 	paths := flags.Args()
 	if len(paths) == 0 {

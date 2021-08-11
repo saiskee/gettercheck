@@ -1,7 +1,7 @@
 // +build go1.11
 // +build !go1.13
 
-package errcheck
+package gettercheck
 
 import (
 	"fmt"

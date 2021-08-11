@@ -1,4 +1,4 @@
-package errcheck
+package gettercheck
 
 import (
 	"bufio"
