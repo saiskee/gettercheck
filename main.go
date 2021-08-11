@@ -111,7 +111,9 @@ func mainCmd(args []string) int {
 	// Report unused getter error if errors are found
 	if len(result.UnusedGetterError) > 0 {
 		reportResult(result)
-		return exitUncheckedError
+		if !checker.WriteGetters{
+			return exitUncheckedError
+		}
 	}
 	return exitCodeOk
 }
