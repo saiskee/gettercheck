@@ -1,16 +1,15 @@
-package errcheck
+package gettercheck
 
 import (
-	"go/ast"
 	"go/token"
-	"reflect"
-
 	"golang.org/x/tools/go/analysis"
+	"golang.org/x/tools/go/ast/astutil"
+	"reflect"
 )
 
 var Analyzer = &analysis.Analyzer{
-	Name:       "errcheck",
-	Doc:        "check for unchecked errors",
+	Name:       "gettercheck",
+	Doc:        "check for unused getters",
 	Run:        runAnalyzer,
 	ResultType: reflect.TypeOf(Result{}),
 }
@@ -29,12 +28,13 @@ func runAnalyzer(pass *analysis.Pass) (interface{}, error) {
 			errors:    nil,
 		}
 
-		ast.Walk(v, f)
+		astutil.Apply(f, v.Visit,nil)
+		//ast.Walk(v, f)
 
 		for _, err := range v.errors {
 			pass.Report(analysis.Diagnostic{
 				Pos:     token.Pos(int(f.Pos()) + err.Pos.Offset),
-				Message: "unused protobuf getter",
+				Message: "unused getter",
 			})
 		}
 
