@@ -81,7 +81,7 @@ func reportResult(e gettercheck.Result) {
 		if verbose {
 			fmt.Printf("%s:\t%s\t%s\n\tGetter at %s\n\n", pos, unusedGetterError.FuncName, unusedGetterError.Line, unusedGetterError.GetterPos.String())
 		}else {
-			fmt.Printf("%s:\t%s\t%s", pos, unusedGetterError.FuncName, unusedGetterError.Line)
+			fmt.Printf("%s:\t%s\t%s\n", pos, unusedGetterError.FuncName, unusedGetterError.Line)
 		}
 	}
 }
