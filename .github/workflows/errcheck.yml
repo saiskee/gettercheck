@@ -1,4 +1,4 @@
-name: errcheck
+name: gettercheck
 
 on:
   push:

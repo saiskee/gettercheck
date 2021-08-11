@@ -1,4 +1,4 @@
-package errcheck
+package gettercheck
 
 import (
 	"bufio"
@@ -14,7 +14,7 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
-// visitor implements the errcheck algorithm
+// visitor implements the gettercheck algorithm
 type visitor struct {
 	types     *types.Package
 	typesInfo *types.Info
@@ -105,51 +105,6 @@ func (v *visitor) selectorName(call *ast.CallExpr) string {
 	return getSelectorName(sel)
 }
 
-// namesForExcludeCheck will return a list of fully-qualified function names
-// from a function call that can be used to check against the exclusion list.
-//
-// If a function call is against a local function (like "myFunc()") then no
-// names are returned. If the function is package-qualified (like "fmt.Printf()")
-// then just that function's fullName is returned.
-//
-// Otherwise, we walk through all the potentially embeddded interfaces of the receiver
-// the collect a list of type-qualified function names that we will check.
-func (v *visitor) namesForExcludeCheck(call *ast.CallExpr) []string {
-	sel, fn, ok := v.selectorAndFunc(call)
-	if !ok {
-		return nil
-	}
-
-	name := v.fullName(call)
-	if name == "" {
-		return nil
-	}
-
-	// This will be missing for functions without a receiver (like fmt.Printf),
-	// so just fall back to the the function's fullName in that case.
-	selection, ok := v.typesInfo.Selections[sel]
-	if !ok {
-		return []string{name}
-	}
-
-	// This will return with ok false if the function isn't defined
-	// on an interface, so just fall back to the fullName.
-	ts, ok := walkThroughEmbeddedInterfaces(selection)
-	if !ok {
-		return []string{name}
-	}
-
-	result := make([]string, len(ts))
-	for i, t := range ts {
-		// Like in fullName, vendored packages will have /vendor/ in their name,
-		// thus not matching vendored standard library packages. If we
-		// want to support vendored stdlib packages, we need to implement
-		// additional logic here.
-		result[i] = fmt.Sprintf("(%s).%s", t.String(), fn.Name())
-	}
-	return result
-}
-
 // isBufferType checks if the expression type is a known in-memory buffer type.
 func (v *visitor) argName(expr ast.Expr) string {
 	// Special-case literal "os.Stdout" and "os.Stderr"
@@ -216,21 +171,29 @@ func (v *visitor) Visit(c *astutil.Cursor) bool {
 	}
 	switch n := node.(type) {
 	case *ast.SelectorExpr:
-		switch p := c.Parent().(type){
-		case *ast.AssignStmt:
-			return true
+		// this switch controls for special cases where we may
+		// not want to use the getter
+		switch p := c.Parent().(type) {
+			case *ast.AssignStmt:
+				// If the parent is an assignment statement, we only want to
+				// report if it's not on the left hand side (e.g. we are not setting this value)
+				for _, i := range p.Lhs{
+					if n == i {
+						return true
+					}
+				}
 		case *ast.BinaryExpr:
-			if p.Op == token.EQL{
+			if p.Op == token.EQL {
 				if i, ok := p.Y.(*ast.Ident); ok {
-					if v.typesInfo.TypeOf(i).String() == "untyped nil"{
+					if v.typesInfo.TypeOf(i).String() == "untyped nil" {
 						if sel, ok := p.X.(*ast.SelectorExpr); ok {
 							b := v.typesInfo.TypeOf(sel.Sel)
-							basicPointerTypes := []string{"*string", "*int", "*bool", "*int", "*int32", "*int64", "*float32", "*float64", "*uint32", "*uint64" }
-							if stringutils.ContainsString(b.String(), basicPointerTypes){
+							basicPointerTypes := []string{"*string", "*int", "*bool", "*int", "*int32", "*int64", "*float32", "*float64", "*uint32", "*uint64"}
+							if stringutils.ContainsString(b.String(), basicPointerTypes) {
 								return true
 							}
 							fmt.Println(b.String())
-							//if b.String() == "hi"{}
+							//if b.Name() == "hi"{}
 						}
 					}
 				}
@@ -240,9 +203,7 @@ func (v *visitor) Visit(c *astutil.Cursor) bool {
 				return true
 			}
 		}
-		if _, ok := c.Parent().(*ast.AssignStmt); ok {
-			return true
-		}
+
 		obj := v.typesInfo.ObjectOf(n.Sel)
 		switch obj.(type) {
 		case *types.Var:
@@ -306,14 +267,6 @@ func FindMethod(p types.Type, methodName string) *types.Func {
 		return nil
 	}
 	return nil
-}
-
-//func (v *visitor) VisitAssignStmt(c *astutil.Cursor) bool {
-//
-//}
-
-func print(f interface{}) {
-	fmt.Printf("debug - %+v\n", f)
 }
 
 type UnaryVisitor struct {
